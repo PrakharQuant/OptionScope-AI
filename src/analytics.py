@@ -3,20 +3,25 @@ import pandas as pd
 
 
 def prepare_data(df):
-    """Clean the raw dataset and create quantitative indicators."""
+    """Clean the raw options dataset and create derived market indicators."""
 
     df = df.copy()
 
     # ---------------------------------------------------------
-    # Date
+    # 1. Parse monthly dates
     # ---------------------------------------------------------
+    # Raw data uses two-digit years such as Jun-01 and Jun-26.
+    # Explicitly prepend "20" so the years are interpreted as
+    # 2001 ... 2026 rather than relying on Python's YY convention.
+    date_parts = df["Date"].astype(str).str.split("-", expand=True)
+
     df["Date"] = pd.to_datetime(
-        df["Date"],
-        format="%b-%y"
+        date_parts[0] + "-20" + date_parts[1],
+        format="%b-%Y"
     )
 
     # ---------------------------------------------------------
-    # Standardized column names
+    # 2. Standardize column names
     # ---------------------------------------------------------
     df = df.rename(columns={
         "Index Options Contracts": "index_contracts",
@@ -27,10 +32,13 @@ def prepare_data(df):
         "Put Turnover": "put_turnover",
     })
 
+    # ---------------------------------------------------------
+    # 3. Sort chronologically
+    # ---------------------------------------------------------
     df = df.sort_values("Date").reset_index(drop=True)
 
     # ---------------------------------------------------------
-    # Growth
+    # 4. Market activity
     # ---------------------------------------------------------
     df["contracts_growth"] = (
         df["index_contracts"].pct_change() * 100
@@ -41,8 +49,10 @@ def prepare_data(df):
     )
 
     # ---------------------------------------------------------
-    # Liquidity
+    # 5. Liquidity / average premium
     # ---------------------------------------------------------
+    # Approximate premium/value per contract:
+    # Turnover / Contracts
     df["avg_premium"] = (
         df["index_turnover"]
         / df["index_contracts"].replace(0, np.nan)
@@ -52,6 +62,7 @@ def prepare_data(df):
         df["avg_premium"].pct_change() * 100
     )
 
+    # 12-month rolling average premium
     df["premium_12m"] = (
         df["avg_premium"]
         .rolling(12)
@@ -59,33 +70,36 @@ def prepare_data(df):
     )
 
     # ---------------------------------------------------------
-    # Sentiment
+    # 6. Sentiment indicators
     # ---------------------------------------------------------
+
+    # Put/Call Contract Ratio
     df["pcr_contracts"] = (
         df["put_contracts"]
         / df["call_contracts"].replace(0, np.nan)
     )
 
+    # Put/Call Turnover Ratio
     df["pcr_turnover"] = (
         df["put_turnover"]
         / df["call_turnover"].replace(0, np.nan)
     )
 
+    # Put and Call participation shares
     df["put_share"] = (
         df["put_contracts"]
         / df["index_contracts"].replace(0, np.nan)
-        * 100
-    )
+    ) * 100
 
     df["call_share"] = (
         df["call_contracts"]
         / df["index_contracts"].replace(0, np.nan)
-        * 100
-    )
+    ) * 100
 
     # ---------------------------------------------------------
-    # Rolling market activity
+    # 7. Participation / activity trends
     # ---------------------------------------------------------
+
     df["contracts_12m"] = (
         df["index_contracts"]
         .rolling(12)
@@ -99,8 +113,11 @@ def prepare_data(df):
     )
 
     # ---------------------------------------------------------
-    # Data integrity
+    # 8. Reconciliation checks
     # ---------------------------------------------------------
+    # These allow us to verify that the index totals are
+    # consistent with the Call + Put components.
+
     df["contract_reconciliation"] = (
         df["index_contracts"]
         - df["call_contracts"]
@@ -117,7 +134,10 @@ def prepare_data(df):
 
 
 def validate_data(df):
-    """Validate index totals against call + put components."""
+    """
+    Check whether index totals reconcile with
+    Call + Put components.
+    """
 
     contract_difference = (
         df["index_contracts"]
@@ -131,13 +151,14 @@ def validate_data(df):
         - df["put_turnover"]
     )
 
+    # Contracts should reconcile essentially exactly.
     contract_ok = np.allclose(
         contract_difference,
         0,
         atol=0.01
     )
 
-    # Turnover may contain rounding differences.
+    # Turnover may contain small rounding differences.
     turnover_ok = np.allclose(
         turnover_difference,
         0,
@@ -152,56 +173,5 @@ def validate_data(df):
         ),
         "max_turnover_difference": float(
             turnover_difference.abs().max()
-        )
+        ),
     }
-
-
-def calculate_omis(df):
-    """
-    OptionScope Market Intelligence Score.
-
-    This is a project-defined composite indicator,
-    not a standard financial-market index.
-    """
-
-    data = df.copy()
-
-    # Participation
-    participation = (
-        data["contracts_growth"]
-        .rolling(6)
-        .mean()
-    )
-
-    # Turnover momentum
-    turnover = (
-        data["turnover_growth"]
-        .rolling(6)
-        .mean()
-    )
-
-    # Premium relative to its 12-month average
-    premium_signal = (
-        data["avg_premium"]
-        / data["premium_12m"]
-        - 1
-    ) * 100
-
-    # Sentiment balance:
-    # PCR near 1 = more balanced
-    sentiment_balance = (
-        1
-        - (data["pcr_contracts"] - 1).abs()
-    )
-
-    def percentile_score(series):
-        return series.rank(pct=True) * 100
-
-    score = (
-        0.30 * percentile_score(participation)
-        + 0.30 * percentile_score(turnover)
-        + 0.20 * percentile_score(premium_signal)
-        + 0.20 * percentile_score(sentiment_balance)
-    )
-
-    return score.clip(0, 100)
