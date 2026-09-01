@@ -249,24 +249,19 @@ if page == "📊 Market Overview":
     col1, col2, col3, col4 = st.columns(4)
 
     col1.metric(
-        "Latest Contracts",
-        f"{latest['index_contracts']:,.0f}",
-    )
+    "Average Value per Contract",
+    f"{latest['avg_premium']:.2f}",
+)
 
-    col2.metric(
-        "Latest Turnover",
-        f"₹{latest['index_turnover'] / 1e9:.2f}B",
-    )
+col2.metric(
+    "Value per Contract vs 12M",
+    f"{latest['premium_vs_12m']:+.1f}%",
+)
 
-    col3.metric(
-        "Put / Call Ratio",
-        f"{latest['pcr_contracts']:.2f}",
-    )
-
-    col4.metric(
-        "OMIS",
-        f"{latest['omis']:.1f}",
-    )
+col3.metric(
+    "Value per Contract Growth",
+    f"{latest['premium_growth']:+.1f}%",
+)
 
     st.divider()
 
@@ -414,7 +409,7 @@ elif page == "💧 Liquidity Intelligence":
             x=filtered["Date"],
             y=filtered["avg_premium"],
             mode="lines",
-            name="Average Premium",
+            name="Average Value per Contract",
         )
     )
 
@@ -533,8 +528,8 @@ elif page == "🧠 Market Regimes":
     st.markdown(
         """
         K-Means clustering identifies recurring market
-        environments from activity, premium and positioning
-        characteristics.
+        environments from activity, contract-value and
+        positioning characteristics.
         """
     )
 
@@ -633,7 +628,7 @@ elif page == "🚨 Anomaly Detection":
     st.markdown(
         """
         Isolation Forest identifies observations whose
-        combination of activity, premium and positioning
+        combination of activity, contract value and positioning
         characteristics differs substantially from historical
         patterns.
         """
@@ -1225,29 +1220,30 @@ elif page == "🔍 Data Quality":
 st.markdown(
     """
     <div class="footer">
+        <strong>OptionScope AI</strong><br><br>
 
-    <strong>OptionScope AI</strong><br><br>
+        Built by <strong>Prakhar Gupta</strong>
+        &nbsp;&nbsp;
+        <a href="mailto:bestofprakhar@gmail.com"
+           title="Email Prakhar Gupta">
+            ✉
+        </a>
 
-    Built by <strong>Prakhar Gupta</strong><br><br>
+        &nbsp;&nbsp;|&nbsp;&nbsp;
 
-    <a href="mailto:bestofprakhar@gmail.com">
-    ✉ Email
-    </a>
+        <a href="https://www.linkedin.com/in/prakhar-gupta-5b7250372"
+           target="_blank"
+           title="LinkedIn">
+            in
+        </a>
 
-    &nbsp;&nbsp;|&nbsp;&nbsp;
+        &nbsp;&nbsp;|&nbsp;&nbsp;
 
-    <a href="https://www.linkedin.com/in/prakhar-gupta-5b7250372"
-       target="_blank">
-    LinkedIn
-    </a>
-
-    &nbsp;&nbsp;|&nbsp;&nbsp;
-
-    <a href="https://x.com/PrakharQuant"
-       target="_blank">
-    X
-    </a>
-
+        <a href="https://x.com/PrakharQuant"
+           target="_blank"
+           title="X">
+            𝕏
+        </a>
     </div>
     """,
     unsafe_allow_html=True,
