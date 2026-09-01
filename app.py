@@ -385,17 +385,17 @@ elif page == "💧 Liquidity Intelligence":
     col1, col2, col3 = st.columns(3)
 
     col1.metric(
-        "Average Premium",
+        "Average Value per contract",
         f"{latest['avg_premium']:.2f}",
     )
 
     col2.metric(
-        "Premium vs 12M",
+        "Value per contract vs 12M",
         f"{latest['premium_vs_12m']:+.1f}%",
     )
 
     col3.metric(
-        "Premium Growth",
+        "Value per contract Growth",
         f"{latest['premium_growth']:+.1f}%",
     )
 
@@ -1218,29 +1218,31 @@ elif page == "🔍 Data Quality":
 
 st.markdown(
     """
-    <div class="footer">
-        <strong>OptionScope AI</strong><br><br>
-
+    <div style="
+        text-align:center;
+        margin-top:40px;
+        padding:20px 0;
+        font-size:14px;
+    ">
         Built by <strong>Prakhar Gupta</strong>
         &nbsp;&nbsp;
         <a href="mailto:bestofprakhar@gmail.com"
-           title="Email Prakhar Gupta">
+           title="Email Prakhar Gupta"
+           style="text-decoration:none; font-size:20px;">
             ✉
         </a>
-
-        &nbsp;&nbsp;|&nbsp;&nbsp;
-
+        &nbsp;&nbsp;
         <a href="https://www.linkedin.com/in/prakhar-gupta-5b7250372"
            target="_blank"
-           title="LinkedIn">
+           title="LinkedIn"
+           style="text-decoration:none; font-weight:bold; font-size:18px;">
             in
         </a>
-
-        &nbsp;&nbsp;|&nbsp;&nbsp;
-
+        &nbsp;&nbsp;
         <a href="https://x.com/PrakharQuant"
            target="_blank"
-           title="X">
+           title="X"
+           style="text-decoration:none; font-size:20px;">
             𝕏
         </a>
     </div>
