@@ -720,132 +720,439 @@ elif page == "🚨 Anomaly Detection":
 
 elif page == "📅 Event Analysis":
 
-    st.header("📅 Major Market Events")
+    st.title("📅 Event Analysis")
 
     st.markdown(
         """
-        Examine how Indian index-options activity behaved
-        around major geopolitical, policy and market-structure
-        events.
+        Examine how index-options market activity behaved around
+        major market and geopolitical events.
 
-        **Important:** these are descriptive event comparisons,
-        not causal estimates.
+        The analysis is **descriptive rather than causal**: it
+        identifies changes in market behavior around major event
+        dates but does not claim that an event caused those changes.
         """
     )
 
     # --------------------------------------------------------
-    # EVENT SELECTOR
+    # EVENT DEFINITIONS
     # --------------------------------------------------------
 
-    event_name = st.selectbox(
-        "Select Event",
-        list(EVENTS.keys()),
-    )
+    event_definitions = [
+        {
+            "name": "Russia-Ukraine War",
+            "date": pd.Timestamp("2022-02-24"),
+            "description": (
+                "Russia launched its full-scale invasion of Ukraine."
+            ),
+            "line_color": "#ff6b6b",
+        },
+        {
+            "name": "BSE Derivatives Relaunch",
+            "date": pd.Timestamp("2023-05-15"),
+            "description": (
+                "BSE relaunched Sensex and Bankex derivatives."
+            ),
+            "line_color": "#4dabf7",
+        },
+        {
+            "name": "Trump India Tariffs",
+            "date": pd.Timestamp("2025-08-27"),
+            "description": (
+                "Additional US tariffs on Indian imports took effect."
+            ),
+            "line_color": "#ffd43b",
+        },
+    ]
 
-    event = EVENTS[event_name]
-
-    st.info(
-        f"**{event_name}** — "
-        f"{event['date']:%d %B %Y}\n\n"
-        f"{event['description']}"
+    event_definitions = sorted(
+        event_definitions,
+        key=lambda x: x["date"],
     )
 
     # --------------------------------------------------------
-    # PRE / POST COMPARISON
+    # EVENT TIMELINE
     # --------------------------------------------------------
 
-    st.subheader("12-Month Pre / Post Comparison")
+    st.subheader("Major Event Timeline")
 
-    comparison = compare_event(
-        df,
-        event_name,
-        window_months=12,
+    st.caption(
+        "Dashed vertical lines mark major events. "
+        "The chart follows the date range selected in the sidebar."
     )
+
+    # --------------------------------------------------------
+    # MARKET ACTIVITY CHART
+    # --------------------------------------------------------
+
+    fig_events = go.Figure()
+
+    # Use FILTERED data so the chart responds to the
+    # global date slider.
+    if not filtered.empty:
+
+        # -----------------------------------------------
+        # Contracts
+        # -----------------------------------------------
+
+        if "index_contracts" in filtered.columns:
+
+            fig_events.add_trace(
+                go.Scatter(
+                    x=filtered["Date"],
+                    y=filtered["index_contracts"],
+                    mode="lines",
+                    name="Index Options Contracts",
+                    hovertemplate=(
+                        "%{x|%b %Y}<br>"
+                        "Contracts: %{y:,.0f}"
+                        "<extra></extra>"
+                    ),
+                )
+            )
+
+        # -----------------------------------------------
+        # Turnover
+        # -----------------------------------------------
+
+        if "index_turnover" in filtered.columns:
+
+            fig_events.add_trace(
+                go.Scatter(
+                    x=filtered["Date"],
+                    y=filtered["index_turnover"],
+                    mode="lines",
+                    name="Index Options Turnover",
+                    yaxis="y2",
+                    hovertemplate=(
+                        "%{x|%b %Y}<br>"
+                        "Turnover: %{y:,.0f}"
+                        "<extra></extra>"
+                    ),
+                )
+            )
+
+    # --------------------------------------------------------
+    # DATE RANGE OF FILTERED DATA
+    # --------------------------------------------------------
+
+    if not filtered.empty:
+
+        chart_min_date = filtered["Date"].min()
+        chart_max_date = filtered["Date"].max()
+
+        # ----------------------------------------------------
+        # ADD EVENT MARKERS ONLY IF INSIDE SELECTED RANGE
+        # ----------------------------------------------------
+
+        for event_item in event_definitions:
+
+            actual_date = event_item["date"]
+
+            # Dataset is monthly, so align the event marker
+            # to the first day of the event month.
+            marker_date = pd.Timestamp(
+                year=actual_date.year,
+                month=actual_date.month,
+                day=1,
+            )
+
+            # Only show the event if its month falls inside
+            # the currently selected date range.
+            if (
+                marker_date >= chart_min_date
+                and marker_date <= chart_max_date
+            ):
+
+                fig_events.add_vline(
+                    x=marker_date,
+                    line_dash="dash",
+                    line_width=2.5,
+                    line_color=event_item["line_color"],
+                )
+
+                fig_events.add_annotation(
+                    x=marker_date,
+                    y=1,
+                    yref="paper",
+                    text=(
+                        f"<b>{event_item['name']}</b><br>"
+                        f"{actual_date:%d %b %Y}"
+                    ),
+                    showarrow=False,
+                    yshift=10,
+                    xanchor="left",
+                    textangle=-90,
+                    font=dict(
+                        size=11,
+                    ),
+                )
+
+    # --------------------------------------------------------
+    # CHART LAYOUT
+    # --------------------------------------------------------
+
+    fig_events.update_layout(
+        template="plotly_dark",
+        title="Index Options Activity Around Major Events",
+        xaxis_title="Date",
+        yaxis_title="Contracts",
+        yaxis2=dict(
+            title="Turnover",
+            overlaying="y",
+            side="right",
+            showgrid=False,
+        ),
+        hovermode="x unified",
+        height=650,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="left",
+            x=0,
+        ),
+        margin=dict(
+            l=60,
+            r=80,
+            t=130,
+            b=60,
+        ),
+    )
+
+    if filtered.empty:
+
+        st.warning(
+            "No data is available for the selected date range."
+        )
+
+    else:
+
+        st.plotly_chart(
+            fig_events,
+            use_container_width=True,
+        )
+
+    # --------------------------------------------------------
+    # EVENT REFERENCE
+    # --------------------------------------------------------
+
+    st.subheader("Events")
+
+    event_rows = []
+
+    for event_item in event_definitions:
+
+        event_rows.append(
+            {
+                "Event": event_item["name"],
+                "Date": event_item["date"].strftime(
+                    "%d %B %Y"
+                ),
+                "Description": event_item["description"],
+            }
+        )
 
     st.dataframe(
-        comparison,
+        pd.DataFrame(event_rows),
         use_container_width=True,
         hide_index=True,
     )
 
     # --------------------------------------------------------
-    # EVENT TRAJECTORY
+    # 12-MONTH EVENT COMPARISON
     # --------------------------------------------------------
 
-    st.subheader(
-        "Market Activity Around the Event"
+    st.subheader("12-Month Pre / Post Event Comparison")
+
+    st.caption(
+        "The comparison uses the available historical data around "
+        "each event. The event month itself is excluded."
     )
 
-    trajectory = get_event_trajectory(
-        df,
-        event_name,
-        window_months=12,
-    )
+    comparison_rows = []
 
-    fig = go.Figure()
+    for event_item in event_definitions:
 
-    fig.add_trace(
-        go.Scatter(
-            x=trajectory["Date"],
-            y=trajectory["index_contracts"],
-            mode="lines+markers",
-            name="Contracts",
+        event_date = event_item["date"]
+
+        event_month = pd.Timestamp(
+            year=event_date.year,
+            month=event_date.month,
+            day=1,
         )
-    )
 
-    fig.add_vline(
-        x=event["date"],
-        line_dash="dash",
-        annotation_text=event_name,
-    )
-
-    fig.update_layout(
-        template="plotly_dark",
-        height=450,
-        hovermode="x unified",
-        yaxis_title="Contracts",
-        xaxis_title="",
-    )
-
-    st.plotly_chart(
-        fig,
-        use_container_width=True,
-    )
-
-    # --------------------------------------------------------
-    # TURNOVER
-    # --------------------------------------------------------
-
-    st.subheader("Turnover Response")
-
-    fig2 = go.Figure()
-
-    fig2.add_trace(
-        go.Scatter(
-            x=trajectory["Date"],
-            y=trajectory["index_turnover"],
-            mode="lines+markers",
-            name="Turnover",
+        pre_start = (
+            event_month
+            - pd.DateOffset(months=12)
         )
+
+        post_end = (
+            event_month
+            + pd.DateOffset(months=12)
+        )
+
+        # Use the FULL dataset for the 12-month event study.
+        # This is intentional: otherwise moving the dashboard
+        # slider would incorrectly truncate the event windows.
+        pre = df[
+            (df["Date"] >= pre_start)
+            & (df["Date"] < event_month)
+        ].copy()
+
+        post = df[
+            (df["Date"] > event_month)
+            & (df["Date"] <= post_end)
+        ].copy()
+
+        # -----------------------------------------------
+        # Contracts
+        # -----------------------------------------------
+
+        pre_contracts = (
+            pre["index_contracts"].mean()
+            if "index_contracts" in pre.columns
+            else None
+        )
+
+        post_contracts = (
+            post["index_contracts"].mean()
+            if "index_contracts" in post.columns
+            else None
+        )
+
+        if (
+            pre_contracts is not None
+            and post_contracts is not None
+            and pre_contracts != 0
+        ):
+
+            contracts_change = (
+                (post_contracts - pre_contracts)
+                / abs(pre_contracts)
+                * 100
+            )
+
+        else:
+
+            contracts_change = None
+
+        # -----------------------------------------------
+        # Turnover
+        # -----------------------------------------------
+
+        pre_turnover = (
+            pre["index_turnover"].mean()
+            if "index_turnover" in pre.columns
+            else None
+        )
+
+        post_turnover = (
+            post["index_turnover"].mean()
+            if "index_turnover" in post.columns
+            else None
+        )
+
+        if (
+            pre_turnover is not None
+            and post_turnover is not None
+            and pre_turnover != 0
+        ):
+
+            turnover_change = (
+                (post_turnover - pre_turnover)
+                / abs(pre_turnover)
+                * 100
+            )
+
+        else:
+
+            turnover_change = None
+
+        comparison_rows.append(
+            {
+                "Event": event_item["name"],
+                "Date": event_date.strftime(
+                    "%d %b %Y"
+                ),
+                "Pre-Event Contracts": pre_contracts,
+                "Post-Event Contracts": post_contracts,
+                "Contracts Change %": contracts_change,
+                "Pre-Event Turnover": pre_turnover,
+                "Post-Event Turnover": post_turnover,
+                "Turnover Change %": turnover_change,
+            }
+        )
+
+    comparison_df = pd.DataFrame(
+        comparison_rows
     )
 
-    fig2.add_vline(
-        x=event["date"],
-        line_dash="dash",
-        annotation_text=event_name,
-    )
+    # --------------------------------------------------------
+    # FORMAT DISPLAY
+    # --------------------------------------------------------
 
-    fig2.update_layout(
-        template="plotly_dark",
-        height=400,
-        hovermode="x unified",
-        yaxis_title="Turnover",
-        xaxis_title="",
-    )
+    display_df = comparison_df.copy()
 
-    st.plotly_chart(
-        fig2,
+    for column in [
+        "Pre-Event Contracts",
+        "Post-Event Contracts",
+        "Pre-Event Turnover",
+        "Post-Event Turnover",
+    ]:
+
+        if column in display_df.columns:
+
+            display_df[column] = display_df[column].map(
+                lambda x: (
+                    f"{x:,.0f}"
+                    if pd.notna(x)
+                    else "—"
+                )
+            )
+
+    for column in [
+        "Contracts Change %",
+        "Turnover Change %",
+    ]:
+
+        if column in display_df.columns:
+
+            display_df[column] = display_df[column].map(
+                lambda x: (
+                    f"{x:+.1f}%"
+                    if pd.notna(x)
+                    else "—"
+                )
+            )
+
+    st.dataframe(
+        display_df,
         use_container_width=True,
+        hide_index=True,
+    )
+
+    # --------------------------------------------------------
+    # INTERPRETATION
+    # --------------------------------------------------------
+
+    st.subheader("How to Read This")
+
+    st.markdown(
+        """
+        **Event markers** show when major events occurred relative
+        to monthly options-market activity.
+
+        **The chart follows the global date slider.** Events outside
+        the selected period are automatically hidden.
+
+        **12-month pre/post comparison** evaluates the average activity
+        in the 12 months before and after each event using the available
+        historical dataset. This comparison is kept independent of the
+        dashboard slider so that the event-study window remains intact.
+
+        These comparisons are descriptive and should not be interpreted
+        as evidence of causality.
+        """
     )
 
 
