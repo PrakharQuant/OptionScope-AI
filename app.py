@@ -249,22 +249,21 @@ if page == "📊 Market Overview":
     col1, col2, col3, col4 = st.columns(4)
 
     col1.metric(
-    "Average Value per Contract",
-    f"{latest['avg_premium']:.2f}",
-)
+        "Average Value per Contract",
+        f"{latest['avg_premium']:.2f}",
+    )
 
-col2.metric(
-    "Value per Contract vs 12M",
-    f"{latest['premium_vs_12m']:+.1f}%",
-)
+    col2.metric(
+        "Value per Contract vs 12M",
+        f"{latest['premium_vs_12m']:+.1f}%",
+    )
 
-col3.metric(
-    "Value per Contract Growth",
-    f"{latest['premium_growth']:+.1f}%",
-)
+    col3.metric(
+        "Value per Contract Growth",
+        f"{latest['premium_growth']:+.1f}%",
+    )
 
     st.divider()
-
     st.subheader("Market Activity")
 
     fig = go.Figure()
