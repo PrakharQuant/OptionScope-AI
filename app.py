@@ -24,6 +24,7 @@ from src.event_analysis import (
 
 from src.forecast import (
     generate_forecasts,
+    get_forecast_summary,
 )
 
 from src.insights import (
@@ -188,7 +189,8 @@ page = st.sidebar.radio(
         "🧠 Market Regimes",
         "🚨 Anomaly Detection",
         "📅 Event Analysis",
-        "🔍 Data Quality",
+        "🔮 Forecasting",
+        "🔎 Data Quality",
     ],
 )
 
@@ -1148,6 +1150,236 @@ elif page == "📅 Event Analysis":
         as evidence of causality.
         """
     )
+
+# ============================================================
+# FORECASTING
+# ============================================================
+
+elif page == "🔮 Forecasting":
+
+    st.header("🔮 Market Forecasting")
+
+    st.markdown(
+        """
+        Indicative 12-month projections of Indian index-options
+        market activity using exponential smoothing with trend
+        and monthly seasonality.
+
+        Forecasts are analytical estimates based on historical
+        patterns and are not trading recommendations.
+        """
+    )
+
+    if forecast.empty:
+
+        st.warning(
+            "Forecast data is not available."
+        )
+
+    else:
+
+        # ----------------------------------------------------
+        # FORECAST SUMMARY
+        # ----------------------------------------------------
+
+        summary = get_forecast_summary(
+            forecast
+        )
+
+        col1, col2 = st.columns(2)
+
+        col1.metric(
+            "Forecast Horizon",
+            (
+                f"{summary['forecast_start']:%b %Y}"
+                " – "
+                f"{summary['forecast_end']:%b %Y}"
+            ),
+        )
+
+        contracts_change = (
+            (
+                summary["ending_contract_forecast"]
+                - summary["starting_contract_forecast"]
+            )
+            / abs(summary["starting_contract_forecast"])
+            * 100
+            if summary["starting_contract_forecast"] != 0
+            else 0
+        )
+
+        turnover_change = (
+            (
+                summary["ending_turnover_forecast"]
+                - summary["starting_turnover_forecast"]
+            )
+            / abs(summary["starting_turnover_forecast"])
+            * 100
+            if summary["starting_turnover_forecast"] != 0
+            else 0
+        )
+
+        col1.metric(
+            "12-Month Contract Outlook",
+            f"{contracts_change:+.1f}%",
+        )
+
+        col2.metric(
+            "12-Month Turnover Outlook",
+            f"{turnover_change:+.1f}%",
+        )
+
+        st.divider()
+
+        # ----------------------------------------------------
+        # CONTRACT FORECAST
+        # ----------------------------------------------------
+
+        st.subheader(
+            "Index Options Contracts"
+        )
+
+        fig_contracts = go.Figure()
+
+        # Historical data
+        fig_contracts.add_trace(
+            go.Scatter(
+                x=df["Date"],
+                y=df["index_contracts"],
+                mode="lines",
+                name="Historical",
+            )
+        )
+
+        # Forecast
+        fig_contracts.add_trace(
+            go.Scatter(
+                x=forecast["Date"],
+                y=forecast["contracts_forecast"],
+                mode="lines",
+                name="Forecast",
+                line=dict(
+                    dash="dash"
+                ),
+            )
+        )
+
+        # Uncertainty band
+        fig_contracts.add_trace(
+            go.Scatter(
+                x=pd.concat(
+                    [
+                        forecast["Date"],
+                        forecast["Date"].iloc[::-1],
+                    ]
+                ),
+                y=pd.concat(
+                    [
+                        forecast["contracts_upper"],
+                        forecast["contracts_lower"].iloc[::-1],
+                    ]
+                ),
+                fill="toself",
+                mode="lines",
+                line=dict(
+                    width=0
+                ),
+                name="Approx. 95% interval",
+            )
+        )
+
+        fig_contracts.update_layout(
+            template="plotly_dark",
+            height=450,
+            hovermode="x unified",
+            yaxis_title="Contracts",
+            xaxis_title="",
+        )
+
+        st.plotly_chart(
+            fig_contracts,
+            use_container_width=True,
+        )
+
+        # ----------------------------------------------------
+        # TURNOVER FORECAST
+        # ----------------------------------------------------
+
+        st.subheader(
+            "Index Options Turnover"
+        )
+
+        fig_turnover = go.Figure()
+
+        # Historical data
+        fig_turnover.add_trace(
+            go.Scatter(
+                x=df["Date"],
+                y=df["index_turnover"],
+                mode="lines",
+                name="Historical",
+            )
+        )
+
+        # Forecast
+        fig_turnover.add_trace(
+            go.Scatter(
+                x=forecast["Date"],
+                y=forecast["turnover_forecast"],
+                mode="lines",
+                name="Forecast",
+                line=dict(
+                    dash="dash"
+                ),
+            )
+        )
+
+        # Uncertainty band
+        fig_turnover.add_trace(
+            go.Scatter(
+                x=pd.concat(
+                    [
+                        forecast["Date"],
+                        forecast["Date"].iloc[::-1],
+                    ]
+                ),
+                y=pd.concat(
+                    [
+                        forecast["turnover_upper"],
+                        forecast["turnover_lower"].iloc[::-1],
+                    ]
+                ),
+                fill="toself",
+                mode="lines",
+                line=dict(
+                    width=0
+                ),
+                name="Approx. 95% interval",
+            )
+        )
+
+        fig_turnover.update_layout(
+            template="plotly_dark",
+            height=450,
+            hovermode="x unified",
+            yaxis_title="Turnover",
+            xaxis_title="",
+        )
+
+        st.plotly_chart(
+            fig_turnover,
+            use_container_width=True,
+        )
+
+        st.info(
+            "The forecast extends the historical series by "
+            "12 months. The shaded interval is an approximate "
+            "uncertainty range derived from model residuals. "
+            "It should not be interpreted as a confidence interval "
+            "for future market outcomes."
+        )
+
+
 
 
 # ============================================================
